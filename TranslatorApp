@@ -1,0 +1,177 @@
+import javax.swing.*;
+import java.awt.*;
+import java.io.*;
+import java.net.*;
+
+public class TranslatorApp
+{
+    public static void main(String[] args)
+    {
+        SwingUtilities.invokeLater(() ->
+        {
+            TranslatorUI translatorUI = new TranslatorUI();
+            translatorUI.setVisible(true);
+        });
+    }
+}
+
+class TranslatorUI extends JFrame
+{
+    private JTextArea inputTextArea;
+    private JTextArea outputTextArea;
+    private JComboBox<String> languageSelection;
+    private JComboBox<String> themeSelection;
+    private JButton translateButton;
+
+    public TranslatorUI()
+    {
+        setTitle("Real-Time Translator");
+        setSize(500, 400);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        initializeUI();
+        applyTheme("Light");
+    }
+
+    private void initializeUI()
+    {
+        inputTextArea = new JTextArea(4, 30);
+        outputTextArea = new JTextArea(4, 30);
+        outputTextArea.setEditable(false);
+
+        String[] languageOptions = {
+            "English to Hindi", "Hindi to English",
+            "English to Marathi", "Marathi to English"
+        };
+        languageSelection = new JComboBox<>(languageOptions);
+
+        String[] themes = { "Light", "Dark" };
+        themeSelection = new JComboBox<>(themes);
+
+        translateButton = new JButton("Translate");
+
+        JPanel topPanel = new JPanel();
+        topPanel.add(new JLabel("Select Theme:"));
+        topPanel.add(themeSelection);
+
+        JPanel centerPanel = new JPanel(new GridLayout(4, 1, 5, 5));
+        centerPanel.add(new JScrollPane(inputTextArea));
+        centerPanel.add(languageSelection);
+        centerPanel.add(new JScrollPane(outputTextArea));
+        centerPanel.add(translateButton);
+
+        add(topPanel, BorderLayout.NORTH);
+        add(centerPanel, BorderLayout.CENTER);
+
+        themeSelection.addActionListener(e ->
+        {
+            String selectedTheme = (String) themeSelection.getSelectedItem();
+            applyTheme(selectedTheme);
+        });
+
+        translateButton.addActionListener(e ->
+        {
+            performTranslation();
+        });
+    }
+
+    private void applyTheme(String theme)
+    {
+        Color backgroundColor;
+        Color textColor;
+
+        if ("Dark".equalsIgnoreCase(theme))
+        {
+            backgroundColor = Color.DARK_GRAY;
+            textColor = Color.WHITE;
+        }
+        else
+        {
+            backgroundColor = Color.WHITE;
+            textColor = Color.BLACK;
+        }
+
+        inputTextArea.setBackground(backgroundColor);
+        inputTextArea.setForeground(textColor);
+        outputTextArea.setBackground(backgroundColor);
+        outputTextArea.setForeground(textColor);
+    }
+
+    private void performTranslation()
+    {
+        String originalText = inputTextArea.getText().trim();
+
+        if (originalText.isEmpty())
+        {
+            outputTextArea.setText("Please enter text to translate.");
+            return;
+        }
+
+        String fromLang = "en";
+        String toLang = "hi";
+
+        String selectedPair = (String) languageSelection.getSelectedItem();
+
+        switch (selectedPair)
+        {
+            case "English to Hindi":
+                fromLang = "en";
+                toLang = "hi";
+                break;
+            case "Hindi to English":
+                fromLang = "hi";
+                toLang = "en";
+                break;
+            case "English to Marathi":
+                fromLang = "en";
+                toLang = "mr";
+                break;
+            case "Marathi to English":
+                fromLang = "mr";
+                toLang = "en";
+                break;
+        }
+
+        String result = TranslatorAPI.translateGoogle(originalText, fromLang, toLang);
+        outputTextArea.setText(result);
+    }
+}
+
+class TranslatorAPI
+{
+    public static String translateGoogle(String text, String from, String to)
+    {
+        try
+        {
+            String urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx"
+                    + "&sl=" + from
+                    + "&tl=" + to
+                    + "&dt=t&q=" + URLEncoder.encode(text, "UTF-8");
+
+            URL url = new URL(urlStr);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream()));
+            StringBuilder responseBuilder = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null)
+            {
+                responseBuilder.append(line);
+            }
+
+            reader.close();
+
+            String response = responseBuilder.toString();
+
+            return response.split("\"")[1];
+        }
+        catch (Exception e)
+        {
+            return "Translation error: " + e.getMessage();
+        }
+    }
+}
